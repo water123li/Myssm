@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.springframework.org/schema/beans
+  http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+  http://www.springframework.org/schema/aop
+  http://www.springframework.org/schema/aop/spring-aop-4.0.xsd">
+  
+  <!-- 采用注释的方式配置bean --><!-- 启用spring注解支持 -->
+  <context:annotation-config/> <!-- 有了component-scan后，该项可要可不要default-autowire="byType" -->
+  <context:component-scan base-package="com.sjtu"/>
+      <!-- PropertyPlaceholderConfigurer是一个容器后处理器，它会读取属性文件信息，并将这些信息设置成Spring配置文件的数据。 -->
+	<bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath:jdbc.properties</value>
+			</list>
+		</property>
+	</bean>      
+    <!-- dbcp数据源 -->      
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" 
+        destroy-method="close">
+        <property name="driverClassName" value="${jdbc.driverClass}" />
+        <property name="url" value="${jdbc.url}" />
+        <property name="username" value="${jdbc.username}" />
+        <property name="password" value="${jdbc.password}" />
+        <!-- 初始化数 -->
+        <property name="initialSize" value="2" />
+        <!-- 最大连接数 -->
+        <property name="maxActive" value="5" />
+        <!-- 最大空闲连接数 -->
+        <property name="maxIdle" value="1" />
+         <!-- 最小空闲连接数 -->
+        <property name="minIdle" value="1" />
+    </bean>
+    <!-- MyBatis在spring中Bean的配置，都是固定的 -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+       <property name="configLocation" value="classpath:cn/shaviation/myssm/student/mybatis-config.xml" />
+       <property name="dataSource" ref="dataSource" />
+    </bean>
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+       <constructor-arg index="0" name="sqlSessionFactory" ref="sqlSessionFactory" />
+    </bean>
+    <!-- 配置事务管理器，注意这里的dataSource和SqlSessionFactoryBean的dataSource要一致，不然事务就没有作用了-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+    <!-- 配置事务增强处理,指定事务管理器 -->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<!-- 用于配置详细的事务语义 -->
+		<tx:attributes>
+			<!-- 所有以'get'开头的方法是read-only的 -->
+			<tx:method name="get*" read-only="true"/>
+			<!-- 其他方法使用默认的事务设置-->
+			<tx:method name="*"/> 
+		</tx:attributes>
+	</tx:advice>
+	<aop:config>
+		<!-- 配置一个切入点，
+		<aop:pointcut id="myPointcut" expression="execution(* cn.shaviation.mymaven..*Service.*(..))"/>
+		<!-- 指定在leePointcut切入点应用txAdvice事务增强处理 -->
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="myPointcut"/>
+	</aop:config>	
+  </beans>
+  
